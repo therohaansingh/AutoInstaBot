@@ -1,1 +1,62 @@
+name: Daily Instagram Auto-Post
 
+on:
+  schedule:
+    - cron: '30 12 * * *'   # हर रोज दोपहर 6 बजे IST (UTC +5:30)
+  workflow_dispatch:       # मैनुअली भी चला सको
+
+jobs:
+  post-to-instagram:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Run n8n Instagram workflow
+        uses: n8n-io/n8n-action@v1
+        with:
+          workflow: |
+            {
+              "nodes": [
+                {
+                  "parameters": {
+                    "filePath": "posts.csv"
+                  },
+                  "name": "Read CSV",
+                  "type": "n8n-nodes-base.csvRead",
+                  "typeVersion": 1
+                },
+                {
+                  "parameters": {
+                    "authentication": "basicAuth",
+                    "username": "{{ $env.INSTA_USER }}",
+                    "password": "{{ $env.INSTA_PASS }}",
+                    "resource": "photo",
+                    "photo": "=https://drive.google.com/uc?export=download&id={{ $json.fileId }}",
+                    "caption": "{{ $json.Caption }} {{ $json.Hashtags }}"
+                  },
+                  "name": "Instagram Post",
+                  "type": "n8n-nodes-base.instagram",
+                  "typeVersion": 1,
+                  "credentials": {
+                    "instagramApi": "Instagram Account"
+                  }
+                }
+              ],
+              "connections": {
+                "Read CSV": {
+                  "main": [
+                    [
+                      {
+                        "node": "Instagram Post",
+                        "type": "main",
+                        "index": 0
+                      }
+                    ]
+                  ]
+                }
+              }
+            }
+        env:
+          INSTA_USER: ${{ secrets.INSTA_USER }}
+          INSTA_PASS: ${{ secrets.INSTA_PASS }}
